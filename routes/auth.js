@@ -3,7 +3,7 @@ const router = require("express").Router();
 // ℹ️ Handles password encryption
 const bcrypt = require("bcrypt");
 const mongoose = require("mongoose");
-const passport = require("passport")
+const passport = require("passport");
 
 // How many rounds should bcrypt run the salt (default [10 - 12 rounds])
 const saltRounds = 10;
@@ -21,6 +21,19 @@ router.get("/signup", isLoggedOut, (req, res) => {
 });
 
 
+// PASSPORT
+router.post('/login', passport.authenticate('local', {
+	successRedirect: '/profile',
+	failureRedirect: '/login',
+	passReqToCallback: true
+}))
+
+router.get('/github', passport.authenticate('github'));
+
+router.get('/auth/github/callback', passport.authenticate('github', {
+	successRedirect: '/profile',
+	failureRedirect: '/login'
+}))
 router.post('/signup', (req, res, next) => {
   const { username, password } = req.body;
   console.log('hi')
@@ -48,14 +61,23 @@ router.post('/signup', (req, res, next) => {
 
       User.create({ username: username, password: hash })
         .then((createdUser) => {
-          res.redirect('/login');
-        })
-        .catch((err) => {
-          next(err);
-        });
-    }
-  });
-});
+						res.redirect('/login');
+						 
+						// Passport code: log the user in using passport
+						req.login(createdUser, err => {
+							if (err) {
+								next(err);
+							} else {
+								res.redirect('/')
+							}
+						});
+					})
+					.catch(err => {
+						next(err);
+					})
+			}
+		})
+}); 
 
 
 
@@ -121,5 +143,14 @@ router.get("/logout", isLoggedIn, (req, res) => {
     res.redirect("/");
   });
 });
+
+
+// // ALTERNATIVE LOGOUT CODE FOR PASSPORT?? 👀
+// router.get('/logout', (req, res, next) => {
+// 	// basic auth: req.session.destroy()	 
+// 	req.logout()
+// 	res.redirect('/')
+// });
+
 
 module.exports = router;
